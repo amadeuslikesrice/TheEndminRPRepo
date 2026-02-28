@@ -1,0 +1,3171 @@
+/* =========================
+   this shit is for the intro and pre-loads
+   ========================= */
+
+var TEST_SOUND_URL =
+  "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/testsound.mp3";
+
+var PRELOAD_IMAGES = [
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/secondgifattempt.gif",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/d641dea3171128290b2a4b60bc97ff375d777cd6/Endfield%20Industries%20Logo.webp",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Line2.png",
+  "https://i.imgur.com/XygHZnZ.png",
+  "https://i.imgur.com/fQ912wx.png",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/grungetexture2.webp",
+  "https://svgsilh.com/svg/309841.svg",
+  "https://i.imgur.com/RKU8bkn.png",
+  "https://i.imgur.com/ehaiTOz.png",
+  "https://i.imgur.com/fwv6MSZ.png",
+  "https://i.imgur.com/q7TCfAR.jpeg",
+  "https://i.imgur.com/Ad3YqxT.jpeg",
+  "https://i.imgur.com/uSLGIv5.jpeg",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin1.webp",
+  "https://i.imgur.com/Bck007r.gif",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin2.jpg",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin3.jpg",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin%204.jpg",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin%205.jpg",
+  "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/danheng.jpg"
+];
+
+var SOUND_LADY = "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/ARKNIGHTSlady.mp3";
+var SOUND_LOGIN_LOOP = "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/AK%20-%20Initial%20Login.mp3";
+var SOUND_TRANSITION = "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/EndfieldTransistion.mp3";
+var SOUND_ENTER_LOGIN = "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/AK%20-%20Enter%20Login.mp3";
+var loginLoopAudio = null;
+var ladyAudio = null;
+var transitionAudio = null;
+var enterLoginAudio = null;
+var audioReady = false;
+
+var SOUND_HOVER = "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/EndminHover.mp3";
+var SOUND_CLICK = "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/EndminClick.mp3";
+var hoverAudio = null;
+var clickAudio = null;
+
+var SOUND_SHOW = "https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/EndminShow.mp3";
+var showAudio = null;
+
+function qs(sel) { return document.querySelector(sel); }
+
+/* this shit is for volume control */
+var audio = null;
+var allowSelect = false;
+var lastPlayAt = 0;
+
+function ensureAudio() {
+  if (!audio) { audio = new Audio(TEST_SOUND_URL); audio.preload = "auto"; }
+  return audio;
+}
+
+function playTestSound(volume01) {
+  var now = Date.now();
+  if (now - lastPlayAt < 120) return;
+  lastPlayAt = now;
+  var a = ensureAudio();
+  a.volume = Math.max(0, Math.min(1, volume01));
+  try { a.currentTime = 0; } catch (e) {}
+  a.play().then(function () {
+    allowSelect = true;
+    var btn = document.getElementById("btnSelect");
+    if (btn) btn.disabled = false;
+  }).catch(function () {});
+}
+
+function hideLoadingScreen(callback) {
+  var screen = document.getElementById("LOADINGSCREEN");
+  if (!screen) { if (callback) callback(); return; }
+  screen.style.transition = "opacity 0.75s ease";
+  screen.style.opacity = "0";
+  setTimeout(function () { screen.remove(); if (callback) callback(); }, 1000);
+}
+
+
+/* =========================
+   this shit is the loading bar im sorry
+   ========================= */
+
+function shortFileName(url) {
+  try { var p = new URL(url, location.href).pathname; return decodeURIComponent(p.split("/").pop() || url); }
+  catch (e) { return (url.split("/").pop() || url); }
+}
+
+function preloadOne(url) {
+  return new Promise(function (resolve) {
+    var img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload  = function () { resolve({ url: url, ok: true }); };
+    img.onerror = function () { resolve({ url: url, ok: false }); };
+    img.src = url;
+  });
+}
+
+function setBarStatus(text) {
+  var el = qs("#profileLoadbar .profileLoadbar-status");
+  if (el) el.textContent = text || "";
+}
+
+function setBarProgress(pct) {
+  var fill = qs("#profileLoadbar .profileLoadbar-fill");
+  if (fill) fill.style.width = Math.max(0, Math.min(100, pct)) + "%";
+}
+
+async function runProfilePreload() {
+  var bar = document.getElementById("profileLoadbar");
+  if (bar) bar.style.opacity = "1";
+
+  var seen = new Set();
+  var list = [];
+  for (var i = 0; i < PRELOAD_IMAGES.length; i++) {
+    if (PRELOAD_IMAGES[i] && !seen.has(PRELOAD_IMAGES[i])) {
+      seen.add(PRELOAD_IMAGES[i]); list.push(PRELOAD_IMAGES[i]);
+    }
+  }
+
+  var total = list.length + 2;
+  var done = 0;
+
+  setBarStatus("// Initializing resources...");
+  setBarProgress(0);
+
+  /* preload transition audio in parallel */
+  var transReady = false;
+  transitionAudio = new Audio(SOUND_TRANSITION);
+  transitionAudio.preload = "auto";
+  var transPromise = new Promise(function (resolve) {
+    transitionAudio.addEventListener("canplaythrough", function () {
+      transReady = true;
+      resolve();
+    }, { once: true });
+    setTimeout(function () { if (!transReady) resolve(); }, 15000);
+  });
+
+  var enterReady = false;
+  enterLoginAudio = new Audio(SOUND_ENTER_LOGIN);
+  enterLoginAudio.preload = "auto";
+  var enterPromise = new Promise(function (resolve) {
+    enterLoginAudio.addEventListener("canplaythrough", function () {
+      enterReady = true;
+      resolve();
+    }, { once: true });
+    setTimeout(function () { if (!enterReady) resolve(); }, 15000);
+  });
+
+  for (var j = 0; j < list.length; j++) {
+    setBarStatus("// Loading: " + shortFileName(list[j]));
+    await preloadOne(list[j]);
+    done += 1;
+    setBarProgress((done / total) * 45);
+  }
+
+  setBarStatus("// Loading: EndfieldTransistion.mp3");
+  await transPromise;
+  done += 1;
+  setBarProgress((done / total) * 47);
+
+  setBarStatus("// Loading: AK - Enter Login.mp3");
+  await enterPromise;
+  done += 1;
+  setBarProgress((done / total) * 49);
+
+  /* verify integrity */
+  setBarStatus("// Verifying resource integrity...");
+  setBarProgress(50);
+  await new Promise(function (r) { setTimeout(r, 1500); });
+
+  /* meme sequence */
+  setBarStatus("// Pulling for SSR...");
+  setBarProgress(60);
+  await new Promise(function (r) { setTimeout(r, 2000); });
+
+  setBarStatus("// Doing dailies...");
+  setBarProgress(80);
+  await new Promise(function (r) { setTimeout(r, 2000); });
+
+  setBarStatus("// THEFACTORYMUSTGROW.EXE");
+  setBarProgress(90);
+  await new Promise(function (r) { setTimeout(r, 2000); });
+
+  /* done */
+  setBarStatus("// Complete.");
+  setBarProgress(100);
+
+  await new Promise(function (r) { setTimeout(r, 400); });
+
+  if (bar) {
+    bar.style.transition = "opacity 0.5s ease";
+    bar.style.opacity = "0";
+  }
+
+  transitionAudio.volume = Math.min(1, (window.userVolume || 1) * 1.45);
+  transitionAudio.currentTime = 0;
+  transitionAudio.play().catch(function () {});
+
+  runTransition();
+}
+
+
+/* =========================
+   INITIAL Endmin, not the walking
+   ========================= */
+
+function runTransition() {
+  $(".grid-plane").addClass("running");
+
+  /* glitch snapshot of standing Endmin */
+  var canvas = document.getElementById("EndminCanvas");
+  var snapshot = canvas.toDataURL("image/png");
+
+  var $glitch = $('<div class="EndminGlitch">' +
+    '<div class="glitch-layer g1"></div>' +
+    '<div class="glitch-layer g2"></div>' +
+    '<div class="glitch-layer g3"></div>' +
+    '<div class="glitch-layer g4"></div>' +
+    '<div class="glitch-layer g5"></div>' +
+  '</div>');
+
+  $glitch.find(".glitch-layer").css("background-image", "url(" + snapshot + ")");
+  $(".Endmin").append($glitch);
+  $("#EndminCanvas").fadeOut(50);
+  $(".EndminGlitch").addClass("glitching");
+
+  /* fade out page 1 elements */
+  $(".FlareGlow, .FlareComposite").css("animation", "none");
+
+$(".Endmin").css({ transition: "filter 0.6s ease-out", filter: "blur(2px)" });
+  $(".Endmin").delay(100).animate({ opacity: 0 }, 400);
+  $(".EndfieldLogo").delay(100).animate({ opacity: 0 }, 400);
+  $(".FlareGlow").delay(100).animate({ opacity: 0 }, 450);
+  $(".FlareComposite").delay(100).animate({ opacity: 0 }, 450);
+  $(".WaveWrap").delay(150).animate({ opacity: 0 }, 500);
+
+setTimeout(function () {
+    var c = document.getElementById("EndminCanvas");
+    if (c) { c.width = 0; c.height = 0; }
+    window.endminStopped = true;
+  }, 1200);
+
+  setTimeout(function () {
+    if (loginLoopAudio) {
+      var fadeStart = loginLoopAudio.volume;
+      var fadeSteps = 20;
+      var fadeInterval = 1200 / fadeSteps;
+      var step = 0;
+      var fader = setInterval(function () {
+        step++;
+        loginLoopAudio.volume = Math.max(0, fadeStart * (1 - step / fadeSteps));
+        if (step >= fadeSteps) {
+          clearInterval(fader);
+          loginLoopAudio.pause();
+          loginLoopAudio.currentTime = 0;
+        }
+      }, fadeInterval);
+    }
+  }, 500);
+
+  setTimeout(function () {
+    $(".rorschach").addClass("active");
+    $(".rorschach")[0].offsetHeight;
+    $(".rorschach").css("opacity", "0.016");
+    $(".rorVid").each(function () { this.play(); });
+  }, 300);
+
+  setTimeout(function () {
+    $(".yellowLineLeft, .yellowLineRight").addClass("animate");
+  }, 800);
+
+  setTimeout(function () {
+    var vol = 1;
+    try { vol = Number(localStorage.getItem("user_volume")) || 1; } catch (e) {}
+    enterLoginAudio.volume = vol * 0.35;
+    enterLoginAudio.currentTime = 0;
+    enterLoginAudio.play().catch(function () {});
+  }, 950);
+
+  setTimeout(function () {
+    $(".endminWalkWrap").css("opacity", "1");
+    if (window.startEndminWalk) window.startEndminWalk();
+
+    $(".titleWrap").addClass("glitchReveal");
+
+    setTimeout(function () {
+      $(".titleBoxes").addClass("reveal");
+      $(".cornerMarks").addClass("reveal");
+    }, 50);
+
+    setTimeout(function () {
+      $(".badge1").css("display", "block").addClass("badgeGlitchIn");
+    }, 150);
+    setTimeout(function () {
+      $(".badge2").css("display", "block").addClass("badgeGlitchIn");
+    }, 300);
+
+    setTimeout(function () {
+      $("#charFolder").addClass("reveal");
+    }, 350);
+
+    setTimeout(function () {
+      $(".contentA, .contentB").css({
+        display: "block",
+        height: "0.3vmin",
+        overflow: "hidden",
+        opacity: "1"
+      });
+      $(".boxTitle, .boxLayout, .boxContentB").css("opacity", "0");
+      $(".boxTabs").css({ "opacity": "0", "visibility": "hidden" });
+      $(".boxTabsB").css({ "opacity": "0", "visibility": "hidden" });
+
+      setTimeout(function () {
+        $(".contentA").animate({ height: "20vh" }, 400, function () {
+          $(this).css("overflow", "visible");
+          $(".contentA .boxTitle, .contentA .boxLayout").animate({ opacity: 1 }, 300);
+          $(".boxTabs").css("visibility", "visible").animate({ opacity: 1 }, 300);
+        });
+      }, 100);
+
+      setTimeout(function () {
+        $(".contentB").animate({ height: "20vh" }, 400, function () {
+          $(this).css("overflow", "visible");
+          $(".contentB .boxTitle, .contentB .boxContentB").animate({ opacity: 1 }, 300);
+          $(".boxTabsB").css("visibility", "visible").animate({ opacity: 1 }, 300);
+        });
+      }, 250);
+    }, 400);
+  }, 1100);
+}
+
+
+/* =========================
+   BOOT
+   ========================= */
+
+document.addEventListener("DOMContentLoaded", function () {
+  var slider    = document.getElementById("volumeSlider");
+  var pct       = document.getElementById("volumePct");
+  var selectBtn = document.getElementById("btnSelect");
+
+  if (slider) {
+    slider.addEventListener("change", function () {
+      var v = Number(slider.value);
+      if (pct) pct.textContent = String(v);
+      playTestSound(v / 100);
+    });
+  }
+
+  if (selectBtn) {
+    selectBtn.addEventListener("click", function () {
+      if (!allowSelect) return;
+      var v = Number(slider ? slider.value : 50) / 100;
+      try { localStorage.setItem("user_volume", String(v)); } catch (e) {}
+
+      /* fade out intro → page 1 is already visible, start loading */
+      hideLoadingScreen(function () {
+        var vol = Number(slider ? slider.value : 50) / 100;
+
+        ladyAudio.volume = vol;
+        ladyAudio.currentTime = 0;
+        ladyAudio.play().catch(function () {});
+
+        setTimeout(function () {
+          loginLoopAudio.volume = vol;
+          loginLoopAudio.currentTime = 0;
+          loginLoopAudio.loop = true;
+          loginLoopAudio.play().catch(function () {});
+        }, 1500);
+
+        runProfilePreload();
+      });
+    });
+  }
+
+  /*this shit is for the volume bar*/
+  ladyAudio = new Audio(SOUND_LADY);
+  ladyAudio.preload = "auto";
+  loginLoopAudio = new Audio(SOUND_LOGIN_LOOP);
+  loginLoopAudio.preload = "auto";
+
+  var loaded = 0;
+  function checkAudioReady() {
+    loaded++;
+    if (loaded >= 2) {
+      audioReady = true;
+      setTimeout(function () {
+        var cover = document.getElementById("audioCover");
+        if (cover) {
+          cover.style.transition = "opacity 0.25s ease-in";
+          cover.style.opacity = "0";
+          setTimeout(function () { cover.remove(); }, 300);
+        }
+      }, 1500);
+
+      /* show volume gate once audio is cached */
+      var gate = qs("#LOADINGSCREEN .volumeGate");
+      if (gate) {
+        gate.classList.add("show");
+        gate.setAttribute("aria-hidden", "false");
+      }
+    }
+  }
+
+  ladyAudio.addEventListener("canplaythrough", checkAudioReady, { once: true });
+  loginLoopAudio.addEventListener("canplaythrough", checkAudioReady, { once: true });
+});
+
+
+/* =========================
+   STANDING ENDMIN CANVAS (page 1)
+   ========================= */
+
+(function () {
+  var MASKS = {
+    body:   "https://i.imgur.com/RKU8bkn.png",
+    head:   "https://i.imgur.com/ehaiTOz.png",
+    tassle: "https://i.imgur.com/fwv6MSZ.png",
+  };
+
+  var PANELS = [
+    "https://i.imgur.com/q7TCfAR.jpeg",
+    "https://i.imgur.com/Ad3YqxT.jpeg",
+    "https://i.imgur.com/uSLGIv5.jpeg",
+  ];
+
+  var root   = document.getElementById("Endmin");
+  var canvas = document.getElementById("EndminCanvas");
+  if (!root || !canvas) return;
+
+  var rigBody   = root.querySelector(".EndminBody");
+  var rigHead   = root.querySelector(".EndminHead");
+  var rigTassle = root.querySelector(".EndminTassle");
+
+  var ctx = canvas.getContext("2d", { alpha: true });
+
+  var strip       = document.createElement("canvas");
+  var stripCtx    = strip.getContext("2d", { alpha: true });
+  var tmpPanel    = document.createElement("canvas");
+  var tmpPanelCtx = tmpPanel.getContext("2d", { alpha: true });
+  var part        = document.createElement("canvas");
+  var partCtx     = part.getContext("2d", { alpha: true });
+
+  var stripDirty = true;
+
+  function loadImage(url) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload  = function () { resolve(img); };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  function setCanvasSize() {
+    var r   = root.getBoundingClientRect();
+    var dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    canvas.width  = Math.max(1, Math.floor(r.width * dpr));
+    canvas.height = Math.max(1, Math.floor(r.height * dpr));
+    canvas.style.width  = r.width + "px";
+    canvas.style.height = r.height + "px";
+
+    strip.height    = canvas.height;
+    strip.width     = canvas.width * 12;
+    tmpPanel.width  = canvas.width;
+    tmpPanel.height = canvas.height;
+    part.width      = canvas.width;
+    part.height     = canvas.height;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    stripCtx.setTransform(1, 0, 0, 1, 0, 0);
+    tmpPanelCtx.setTransform(1, 0, 0, 1, 0, 0);
+    partCtx.setTransform(1, 0, 0, 1, 0, 0);
+
+    stripDirty = true;
+  }
+
+  function drawCover(ctx2d, img, x, y, w, h) {
+    var iw = img.naturalWidth || img.width;
+    var ih = img.naturalHeight || img.height;
+    var s  = Math.max(w / iw, h / ih);
+    var dw = iw * s, dh = ih * s;
+    ctx2d.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  }
+
+  function applyEdgeFade(ctx2d, w, h) {
+    ctx2d.globalCompositeOperation = "destination-in";
+    var g = ctx2d.createLinearGradient(0, 0, w, 0);
+    g.addColorStop(0.00, "rgba(0,0,0,0)");
+    g.addColorStop(0.10, "rgba(0,0,0,1)");
+    g.addColorStop(0.90, "rgba(0,0,0,1)");
+    g.addColorStop(1.00, "rgba(0,0,0,0)");
+    ctx2d.fillStyle = g;
+    ctx2d.fillRect(0, 0, w, h);
+    ctx2d.globalCompositeOperation = "source-over";
+  }
+
+  function getMatrix(el) {
+    var t = getComputedStyle(el).transform;
+    if (!t || t === "none") return new DOMMatrix();
+    return new DOMMatrix(t);
+  }
+
+  var speed = 75, hugRatio = 0.25, FPS = 30, frameInterval = 1000 / FPS;
+
+  Promise.all(PANELS.map(loadImage))
+    .then(function (loadedPanels) {
+      return Promise.all([
+        Promise.resolve(loadedPanels),
+        loadImage(MASKS.body),
+        loadImage(MASKS.head),
+        loadImage(MASKS.tassle),
+      ]);
+    })
+    .then(function (results) {
+      var imgs       = results[0];
+      var bodyMask   = results[1];
+      var headMask   = results[2];
+      var tassleMask = results[3];
+      var masks = { bodyMask: bodyMask, headMask: headMask, tassleMask: tassleMask };
+
+      setCanvasSize();
+      window.addEventListener("resize", setCanvasSize);
+      new ResizeObserver(function () { setCanvasSize(); }).observe(root);
+
+      var x = 0, last = performance.now(), elapsed = 0;
+
+      function buildStrip() {
+        var cw = canvas.width, ch = canvas.height;
+        var hug = cw * hugRatio, step = cw - hug;
+        var needed = Math.ceil(strip.width / step) + 2;
+        stripCtx.clearRect(0, 0, strip.width, strip.height);
+        for (var i = 0; i < needed; i++) {
+          tmpPanelCtx.clearRect(0, 0, cw, ch);
+          drawCover(tmpPanelCtx, imgs[i % 3], 0, 0, cw, ch);
+          applyEdgeFade(tmpPanelCtx, cw, ch);
+          stripCtx.drawImage(tmpPanel, i * step, 0);
+        }
+        stripDirty = false;
+      }
+
+      function render(now) {
+        if (window.endminStopped) return;
+        var dt = now - last; last = now; elapsed += dt;
+        if (elapsed < frameInterval) { requestAnimationFrame(render); return; }
+        elapsed = 0;
+
+        var dpr = Math.max(1, window.devicePixelRatio || 1);
+        var cw = canvas.width, ch = canvas.height;
+        var hug = cw * hugRatio, step = cw - hug;
+
+        if (stripDirty) buildStrip();
+
+        var loop = step * 3;
+        x -= speed * (dt / 1000) * dpr;
+        while (x <= -loop) x += loop;
+        while (x > 0) x -= loop;
+
+        ctx.clearRect(0, 0, cw, ch);
+
+        function drawPart(maskImg, rigEl) {
+          partCtx.clearRect(0, 0, cw, ch);
+          partCtx.drawImage(strip, x, 0);
+          partCtx.globalCompositeOperation = "destination-in";
+          var m = getMatrix(rigEl);
+          partCtx.setTransform(m.a, m.b, m.c, m.d, m.e * dpr, m.f * dpr);
+          partCtx.drawImage(maskImg, 0, 0, cw, ch);
+          partCtx.setTransform(1, 0, 0, 1, 0, 0);
+          partCtx.globalCompositeOperation = "source-over";
+          ctx.drawImage(part, 0, 0);
+        }
+
+        drawPart(masks.headMask, rigHead);
+        drawPart(masks.tassleMask, rigTassle);
+        drawPart(masks.bodyMask, rigBody);
+
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    })
+    .catch(function (err) {
+      console.error("Endmin canvas init failed:", err);
+    });
+})();
+
+
+/* =========================
+   this part is the main content and endmin walking
+   ========================= */
+
+(function () {
+  var PANELS = [
+    "https://i.imgur.com/q7TCfAR.jpeg",
+    "https://i.imgur.com/Ad3YqxT.jpeg",
+    "https://i.imgur.com/uSLGIv5.jpeg",
+  ];
+
+  var walkRoot   = document.querySelector(".endminWalk");
+  var walkCanvas = document.getElementById("endminWalkCanvas");
+  if (!walkRoot || !walkCanvas) return;
+
+  var wCtx      = walkCanvas.getContext("2d", { alpha: true });
+  var wStrip    = document.createElement("canvas");
+  var wStripCtx = wStrip.getContext("2d", { alpha: true });
+  var wTmp      = document.createElement("canvas");
+  var wTmpCtx   = wTmp.getContext("2d", { alpha: true });
+
+  var wStripDirty = true, wRunning = false;
+  var speed = 75, hugRatio = 0.25, FPS = 30, frameInterval = 1000 / FPS;
+
+  function loadImage(url) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload  = function () { resolve(img); };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  function setWalkCanvasSize() {
+    var r   = walkRoot.getBoundingClientRect();
+    var dpr = Math.max(1, window.devicePixelRatio || 1);
+    walkCanvas.width  = Math.max(1, Math.floor(r.width * dpr));
+    walkCanvas.height = Math.max(1, Math.floor(r.height * dpr));
+    walkCanvas.style.width  = r.width + "px";
+    walkCanvas.style.height = r.height + "px";
+    wStrip.height = walkCanvas.height;
+    wStrip.width  = walkCanvas.width * 12;
+    wTmp.width  = walkCanvas.width;
+    wTmp.height = walkCanvas.height;
+    wCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wStripCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
+    wStripDirty = true;
+  }
+
+  function drawCover(ctx2d, img, x, y, w, h) {
+    var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    var s = Math.max(w / iw, h / ih), dw = iw * s, dh = ih * s;
+    ctx2d.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  }
+
+  function applyEdgeFade(ctx2d, w, h) {
+    ctx2d.globalCompositeOperation = "destination-in";
+    var g = ctx2d.createLinearGradient(0, 0, w, 0);
+    g.addColorStop(0.00, "rgba(0,0,0,0)");
+    g.addColorStop(0.10, "rgba(0,0,0,1)");
+    g.addColorStop(0.90, "rgba(0,0,0,1)");
+    g.addColorStop(1.00, "rgba(0,0,0,0)");
+    ctx2d.fillStyle = g;
+    ctx2d.fillRect(0, 0, w, h);
+    ctx2d.globalCompositeOperation = "source-over";
+  }
+
+  Promise.all(PANELS.map(loadImage)).then(function (imgs) {
+    setWalkCanvasSize();
+    window.addEventListener("resize", setWalkCanvasSize);
+    new ResizeObserver(function () { setWalkCanvasSize(); }).observe(walkRoot);
+
+    var x = 0, last = performance.now(), elapsed = 0;
+
+    function buildStrip() {
+      var cw = walkCanvas.width, ch = walkCanvas.height;
+      var step = cw - cw * hugRatio;
+      var needed = Math.ceil(wStrip.width / step) + 2;
+      wStripCtx.clearRect(0, 0, wStrip.width, wStrip.height);
+      for (var i = 0; i < needed; i++) {
+        wTmpCtx.clearRect(0, 0, cw, ch);
+        drawCover(wTmpCtx, imgs[i % 3], 0, 0, cw, ch);
+        applyEdgeFade(wTmpCtx, cw, ch);
+        wStripCtx.drawImage(wTmp, i * step, 0);
+      }
+      wStripDirty = false;
+    }
+
+    function render(now) {
+      if (!wRunning) return;
+      var dt = now - last; last = now; elapsed += dt;
+      if (elapsed < frameInterval) { requestAnimationFrame(render); return; }
+      elapsed = 0;
+      var dpr = Math.max(1, window.devicePixelRatio || 1);
+      var cw = walkCanvas.width, ch = walkCanvas.height;
+      var step = cw - cw * hugRatio;
+      if (wStripDirty) buildStrip();
+      var loop = step * 3;
+      x -= speed * (dt / 1000) * dpr;
+      while (x <= -loop) x += loop;
+      while (x > 0) x -= loop;
+      wCtx.clearRect(0, 0, cw, ch);
+      wCtx.drawImage(wStrip, x, 0);
+      requestAnimationFrame(render);
+    }
+
+    window.startEndminWalk = function () {
+      wRunning = true;
+      last = performance.now();
+      elapsed = 0;
+      requestAnimationFrame(render);
+    };
+  });
+})();
+
+
+/* =========================
+   LIGHTBOX + TABS + TOOLTIPS
+   ========================= */
+
+$(document).on("click", ".boxImg-base", function () {
+  var src = $(this).attr("src");
+  $("body").append($('<div class="lightbox"><img src="' + src + '"></div>'));
+});
+
+$(document).on("click", ".lightbox", function () {
+  $(this).fadeOut(200, function () { $(this).remove(); });
+});
+
+$(".contentA .boxTab").on("click", function () {
+  var idx = $(this).index();
+  $(this).addClass("tabActive").siblings().removeClass("tabActive");
+  if (idx === 0) { $(".contentA1").show(); $(".contentA2").hide(); }
+  else { $(".contentA1").hide(); $(".contentA2").show(); }
+});
+
+$(".contentB .boxTabB").on("click", function () {
+  var idx = $(this).index();
+  $(this).addClass("tabBActive").siblings().removeClass("tabBActive");
+  $(".contentB1, .contentB2").hide();
+  if (idx === 0) $(".contentB1").show();
+  else $(".contentB2").show();
+});
+
+$(document).on("mouseenter", ".charLink", function () {
+  var text = $(this).find(".charTooltip").text();
+  var $tip = $('<div class="charTip">' + text + '</div>');
+  $("body").append($tip);
+  var rect = this.getBoundingClientRect();
+  $tip.css({
+    left: rect.left + rect.width / 2 - $tip.outerWidth() / 2,
+    top: rect.top - $tip.outerHeight() - 5
+  });
+});
+
+$(document).on("mouseleave", ".charLink", function () {
+  $(".charTip").remove();
+});
+
+
+
+/* =========================
+   CUSTOM RIGHT-CLICK MENU
+   ========================= */
+
+(function () {
+  var menuOpen = false;
+  var fadeTimer = null;
+  var allMuted = false;
+
+  function removeMenu() {
+    var el = document.getElementById("ecm");
+    if (el) el.remove();
+    menuOpen = false;
+    if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+  }
+
+  function createMenu() {
+    removeMenu();
+    menuOpen = true;
+
+    var wrap = document.createElement("div");
+    wrap.id = "ecm";
+
+    var sticker = document.createElement("img");
+    sticker.className = "ecm-sticker";
+    sticker.src = "https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/EndminSticker.webp";
+    sticker.draggable = false;
+
+    var bubble = document.createElement("div");
+    bubble.className = "ecm-bubble";
+    bubble.textContent = "What do you need?";
+
+    var opts = document.createElement("div");
+    opts.className = "ecm-options";
+
+    var btnCode = document.createElement("a");
+    btnCode.className = "ecm-btn";
+    btnCode.href = "https://github.com/amadeuslikesrice/TheEndminRPRepo/tree/main";
+    btnCode.target = "_blank";
+    btnCode.textContent = "Code";
+    btnCode.addEventListener("click", function () { removeMenu(); });
+
+    var btnRefresh = document.createElement("div");
+    btnRefresh.className = "ecm-btn";
+    btnRefresh.textContent = "Refresh";
+    btnRefresh.addEventListener("click", function () { window.location.reload(); });
+
+    var btnMute = document.createElement("div");
+    btnMute.className = "ecm-btn";
+    btnMute.textContent = allMuted ? "Unmute" : "Mute";
+    btnMute.addEventListener("click", function () {
+      allMuted = !allMuted;
+      if (loginLoopAudio) loginLoopAudio.muted = allMuted;
+      if (ladyAudio) ladyAudio.muted = allMuted;
+      if (transitionAudio) transitionAudio.muted = allMuted;
+      if (enterLoginAudio) enterLoginAudio.muted = allMuted;
+      if (typeof audio !== "undefined" && audio) audio.muted = allMuted;
+      btnMute.textContent = allMuted ? "Unmute" : "Mute";
+    });
+
+    opts.appendChild(btnCode);
+    opts.appendChild(btnRefresh);
+    opts.appendChild(btnMute);
+
+    wrap.appendChild(opts);
+    wrap.appendChild(bubble);
+    wrap.appendChild(sticker);
+    document.body.appendChild(wrap);
+
+    wrap.offsetHeight;
+    wrap.classList.add("ecm-show");
+
+    fadeTimer = setTimeout(function () {
+      bubble.style.transition = "opacity 0.3s ease";
+      bubble.style.opacity = "0";
+    }, 1500);
+  }
+
+  document.addEventListener("contextmenu", function (e) {
+    e.preventDefault();
+    if (menuOpen) removeMenu();
+    else createMenu();
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!menuOpen) return;
+    var menu = document.getElementById("ecm");
+    if (menu && !menu.contains(e.target)) removeMenu();
+  });
+})();
+
+
+/* =========================
+   hoverclickyglicky
+   ========================= */
+
+(function () {
+  hoverAudio = new Audio(SOUND_HOVER);
+  hoverAudio.preload = "auto";
+  clickAudio = new Audio(SOUND_CLICK);
+  clickAudio.preload = "auto";
+
+  showAudio = new Audio(SOUND_SHOW);
+  showAudio.preload = "auto";
+
+  var interactable = ".boxTab, .boxTabB, .boxImg-base, .galleryImg, .charLink, .ecm-btn, .vgSelect, .boxTabsB .boxTabB, .charFolder-tab, .charFolder-close";
+
+  function playHover() {
+    var vol = window.userVolume || 0.5;
+    hoverAudio.volume = vol * 0.4;
+    hoverAudio.currentTime = 0;
+    hoverAudio.play().catch(function () {});
+  }
+
+  function playClick() {
+    var vol = window.userVolume || 0.5;
+    clickAudio.volume = vol * 0.5;
+    clickAudio.currentTime = 0;
+    clickAudio.play().catch(function () {});
+  }
+
+  $(document).on("mouseenter", interactable, playHover);
+  $(document).on("click", interactable, playClick);
+})();
+
+
+/* lastminuteadd foldersyey */
+
+function playShowSound() {
+  if (!showAudio) return;
+  var vol = window.userVolume || 0.5;
+  showAudio.volume = vol * 0.5;
+  showAudio.currentTime = 0;
+  showAudio.play().catch(function () {});
+}
+
+$(document).on("click", ".charFolder-tab", function (e) {
+  e.stopPropagation();
+  $(".charFolder-panel").addClass("open");
+  playShowSound();
+});
+
+$(document).on("click", ".charFolder-close", function (e) {
+  e.stopPropagation();
+  $(".charFolder-panel").removeClass("open");
+  playShowSound();
+});
+
+
+
+
+@import url('https://fonts.googleapis.com/css2?family=Electrolize&family=Michroma&family=Oswald:wght@200..700&display=swap');
+
+
+html, body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+}
+
+*, *::before, *::after {
+cursor: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/AKcursor.png") 0 0, auto !important;
+}
+
+*::-webkit-scrollbar {
+  width: 3px;
+}
+*::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(245, 214, 35, 0.3);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 214, 35, 0.5);
+}
+
+hr {
+  border: none;
+  border-top: 0.15vmin solid rgba(245, 214, 35, 0.15);
+  margin: 0.5em 0;
+}
+
+.bg-scan{
+  position:fixed;
+  inset:0;
+  z-index:-5;
+  background-color:#f2f3f4;
+  background-image:repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.045) 0,
+    rgba(0,0,0,0.045) 0.08rem,
+    transparent 0.08rem,
+    transparent 0.16rem
+  );
+}
+
+.floor-wrap{
+  position:fixed;
+  inset:0;  
+  perspective:120vh;
+  perspective-origin:50% 75%;
+  z-index: 5;
+  pointer-events:none;
+  
+}
+
+.grid-plane{
+  position:absolute;
+  left:50%;
+  bottom:0;
+  width:320vmax;
+  height:250vh;
+
+  transform:translateX(-50%) rotateX(78deg);
+  transform-origin:50% 100%;
+
+  opacity:0.55;
+  overflow:hidden;
+
+  backface-visibility:hidden;
+  will-change:transform;
+
+  -webkit-mask-image:linear-gradient(
+    to top,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 30%,
+    rgba(0,0,0,0.55) 50%,
+    rgba(0,0,0,0.0) 62%,
+    rgba(0,0,0,0.0) 100%
+  );
+  mask-image:linear-gradient(
+    to top,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 30%,
+    rgba(0,0,0,0.55) 50%,
+    rgba(0,0,0,0.0) 62%,
+    rgba(0,0,0,0.0) 100%
+  );
+}
+
+.grid-plane::before{
+  content:"";
+  position:absolute;
+  inset:0;
+
+background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 82 82'%3E%3Crect x='38.25' y='38.25' width='10' height='10' fill='rgba(0,0,0,0.55)'/%3E%3C/svg%3E");
+background-size: 8.2rem 8.2rem;
+background-position: center;
+
+  will-change:transform;
+  transform:translate3d(0,0,0);
+
+  filter:blur(0.01rem);
+  animation:gridUp 1.8s linear infinite;
+}
+
+
+.grid-plane::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+
+  background:linear-gradient(
+    to top,
+    rgba(242,243,244,0) 0%,
+    rgba(242,243,244,0) 40%,
+    rgba(242,243,244,0.6) 60%,
+    rgba(242,243,244,1) 100%
+  );
+}
+
+@keyframes gridUp{
+  from { transform:translate3d(0,0,0); }
+  to   { transform:translate3d(0,-8.2rem,0); }
+}
+
+.grid-plane::before{
+  animation: gridUp 2.6s linear infinite paused;
+}
+
+.grid-plane.running::before{
+  animation-play-state: running;
+}
+
+
+
+
+/* =========================
+   FIRST ENDMIN
+   ========================= */
+
+.Endmin{
+  position:fixed;
+  left:0%;
+  bottom:-0.5%;
+
+  width: 80vw;       
+  aspect-ratio: 85 / 47;
+
+  z-index:100;
+  pointer-events:none;
+}
+
+
+.EndminCanvas{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  pointer-events:none;
+}
+
+.EndminRig{
+  position:absolute;
+  inset:0;
+  opacity:0;
+  pointer-events:none;
+  will-change:transform;
+  transform-origin:50% 70%;
+}
+
+.EndminBody{
+  transform-origin:50% 80%;
+  animation:endminBreath 8.2s ease-in-out infinite;
+}
+
+.EndminHead{
+  transform-origin:52% 28%;
+  animation:endminNod 4.2s ease-in-out infinite;
+}
+
+.EndminTassle{
+  transform-origin:60% 18%;
+  animation:endminTassleSway 2.5s ease-in-out infinite;
+}
+
+@keyframes endminBreath{
+ 0%,100%{
+    transform:translate3d(0,0,0) scaleY(1) rotate(0deg);
+  }
+
+  50%{
+    transform:
+      translate3d(0.38%,0.06%,0) 
+      rotate(1deg);            
+  }
+}
+
+@keyframes endminNod{
+  0%,100%{ transform:translate3d(0,0,0) rotate(0deg); }
+  50%{ transform:
+translate3d(0.68%,-0.66%,0)
+rotate(1.5deg); 
+}
+
+}
+
+@keyframes endminTassleSway{
+  0%,100%{ transform:translate3d(0,0,0) rotate(0.2deg); }
+  50%{ transform:translate3d(1%,2.5%,0) rotate(-2.0deg); }
+}
+
+.endminWalkWrap {
+  position: fixed;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  z-index: 600;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease-in;
+  filter: blur(0.6px);
+}
+
+.endminWalk {
+  width: 35vw;
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+  transform: scaleY(1.2);
+
+  -webkit-mask-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/secondgifattempt.gif");
+  mask-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/secondgifattempt.gif");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.endminWalkCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+
+.EndfieldLogo{
+  position:fixed;
+  left:30%;
+  top:65%;
+  transform:translate(-50%,-50%);
+  width:20vw;   
+  aspect-ratio: 1 / 1; 
+  z-index:1000;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.4))
+          drop-shadow(0 0 0px rgba(160,210,255,0))
+          drop-shadow(0 0 0px rgba(120,110,255,0));
+  transition: filter 0.1s ease-in-out;
+  background-image:url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/d641dea3171128290b2a4b60bc97ff375d777cd6/Endfield%20Industries%20Logo.webp");
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center;
+}
+
+.EndfieldLogo:hover{
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.6))
+          drop-shadow(0 0 20px rgba(160,210,255,0.5))
+          drop-shadow(0 0 40px rgba(120,110,255,0.3));
+}
+
+.WaveWrap{
+  position: fixed;
+  left: 0;
+  top: 25%;
+  width: 100%;
+  height: 50vh;
+  z-index: 500;
+  pointer-events: none;
+  overflow: visible;
+}
+
+
+
+.wv{
+  position: absolute;
+  left: 0;
+  width: 200%;
+  height: 300%;
+  top: -11=00%;
+  background-repeat: repeat-x;
+  background-size: 50% 20%;
+  background-position: 0 center;
+}
+
+.wv1{
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Line2.png");
+  opacity: 0.3;
+  top: -100%;
+  filter: blur(1px) 
+    drop-shadow(0 15px 20px rgba(255,255,255,1))
+    drop-shadow(0 35px 30px rgba(255,255,255,0.8))
+    drop-shadow(0 60px 40px rgba(255,255,255,0.2));
+  animation: wavSlide 18s linear infinite;
+}
+
+.wv2{
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Line2.png");
+  opacity: 0.3;
+  top: -100%;
+  filter: blur(1px)
+    drop-shadow(0 15px 20px rgba(255,255,255,1))
+    drop-shadow(0 35px 30px rgba(255,255,255,0.8))
+    drop-shadow(0 60px 40px rgba(255,255,255,0.1));
+  animation: wavSlide 20s linear infinite reverse;
+}
+
+.wv3{
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Line2.png");
+  opacity: 0.4;
+  top: -40%;
+  filter: blur(1px)
+    drop-shadow(0 20px 25px rgba(255,255,255,1))
+    drop-shadow(0 45px 35px rgba(255,255,255,0.8))
+    drop-shadow(0 75px 45px rgba(255,255,255,0.2));
+  animation: wavSlide 20s linear infinite;
+  animation-delay: -3s;
+}
+
+.wv4{
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Line2.png");
+  opacity: 0.35;
+  top: -40%;
+  filter: blur(1px)
+    drop-shadow(0 20px 25px rgba(255,255,255,1))
+    drop-shadow(0 45px 35px rgba(255,255,255,0.8))
+    drop-shadow(0 75px 45px rgba(255,255,255,0.2));
+  animation: wavSlide 14s linear infinite reverse;
+  animation-delay: -5s;
+}
+
+@keyframes wavSlide{
+  0%{ transform: translateX(0); }
+  100%{ transform: translateX(-50%); }
+}
+
+@keyframes wavSlide{
+  0%{ transform: translateX(0); }
+  100%{ transform: translateX(-50%); }
+}
+
+.FlareComposite{
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background-image: url("https://i.imgur.com/XygHZnZ.png");
+  background-size: cover;
+  background-position: center;
+  animation: fcPulse 4s ease-in-out infinite;
+}
+
+@keyframes fcPulse{
+  0%, 100%{ opacity: 0.5; }
+  50%{ opacity: 0.25; }
+}
+
+.FlareGlow{
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 25;
+  pointer-events: none;
+  background-image: url("https://i.imgur.com/fQ912wx.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: top right;
+  animation: fgPulse 4s ease-in-out infinite;
+}
+
+@keyframes fgPulse{
+  0%, 100%{ opacity: 0.15; }
+  50%{ opacity: 0.9; }
+}
+
+
+
+/*Transistions*/
+
+.EndminGlitch{
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.glitch-layer{
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+}
+
+.g1{ clip-path: inset(0% 0% 80% 0%); }
+.g2{ clip-path: inset(20% 0% 60% 0%); }
+.g3{ clip-path: inset(40% 0% 40% 0%); }
+.g4{ clip-path: inset(60% 0% 20% 0%); }
+.g5{ clip-path: inset(80% 0% 0% 0%); }
+
+.glitching .glitch-layer{
+  opacity: 1;
+}
+
+.glitching .g1{
+  animation: glitchSlice1 0.3s steps(1) infinite,
+             glitchFade 0.75s ease-out forwards;
+}
+.glitching .g2{
+  animation: glitchSlice2 0.25s steps(1) infinite,
+             glitchFade 0.75s ease-out 0.1s forwards;
+}
+.glitching .g3{
+  animation: glitchSlice3 0.35s steps(1) infinite,
+             glitchFade 0.75s ease-out 0.2s forwards;
+}
+.glitching .g4{
+  animation: glitchSlice4 0.2s steps(1) infinite,
+             glitchFade 0.75s ease-out 0.15s forwards;
+}
+.glitching .g5{
+  animation: glitchSlice5 0.28s steps(1) infinite,
+             glitchFade 0.75s ease-out 0.25s forwards;
+}
+
+@keyframes glitchSlice1{
+  0%{ transform: translateX(0); }
+  20%{ transform: translateX(-8%); }
+  40%{ transform: translateX(5%); }
+  60%{ transform: translateX(-3%); }
+  80%{ transform: translateX(10%); }
+  100%{ transform: translateX(0); }
+}
+
+@keyframes glitchSlice2{
+  0%{ transform: translateX(0); }
+  15%{ transform: translateX(12%); }
+  35%{ transform: translateX(-6%); }
+  55%{ transform: translateX(4%); }
+  75%{ transform: translateX(-10%); }
+  100%{ transform: translateX(0); }
+}
+
+@keyframes glitchSlice3{
+  0%{ transform: translateX(0); }
+  25%{ transform: translateX(-15%); }
+  45%{ transform: translateX(8%); }
+  65%{ transform: translateX(-4%); }
+  85%{ transform: translateX(6%); }
+  100%{ transform: translateX(0); }
+}
+
+@keyframes glitchSlice4{
+  0%{ transform: translateX(0); }
+  10%{ transform: translateX(6%); }
+  30%{ transform: translateX(-12%); }
+  50%{ transform: translateX(9%); }
+  70%{ transform: translateX(-5%); }
+  100%{ transform: translateX(0); }
+}
+
+@keyframes glitchSlice5{
+  0%{ transform: translateX(0); }
+  20%{ transform: translateX(-7%); }
+  40%{ transform: translateX(14%); }
+  60%{ transform: translateX(-9%); }
+  80%{ transform: translateX(3%); }
+  100%{ transform: translateX(0); }
+}
+
+@keyframes glitchFade{
+  0%{ opacity: 1; filter: none; }
+  60%{ opacity: 0.8; filter: saturate(2) brightness(1.5); }
+  100%{ opacity: 0; filter: saturate(0) brightness(3); }
+}
+
+.Endmin,
+.FlareGlow,
+.FlareComposite,
+.WaveWrap{
+  transition: opacity 0.4s ease-out;
+}
+
+.rorschach {
+  position: fixed;
+  left: 0;
+  bottom: 30%;
+  width: 100%;
+  height: auto;
+  z-index: 550;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease-in;
+  overflow: hidden;
+  display: none;
+}
+
+.rorschach.active {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.rorVid {
+  height: 75vh;
+  width: auto;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.yellowLineLeft,
+.yellowLineRight {
+  position: fixed;
+  top: 54%;
+  height: 3%;
+  z-index: 700;
+  pointer-events: none;
+  background: #f5d623;
+  box-shadow: 0 0 12px rgba(245, 214, 35, 0.4);
+  width: 0%;
+  display: none;
+}
+
+.yellowLineLeft {
+  left: 0;
+}
+
+.yellowLineRight {
+  right: 0;
+}
+
+.yellowLineLeft.animate {
+  display: block;
+  animation: lineFromLeft 0.3s ease-out forwards;
+}
+
+.yellowLineRight.animate {
+  display: block;
+  animation: lineFromRight 0.3s ease-out forwards;
+}
+@keyframes lineFromLeft {
+  0%   { width: 0%; }
+  100% { width: 50%; }
+}
+
+@keyframes lineFromRight {
+  0%   { width: 0%; }
+  100% { width: 50%; }
+}
+
+.yellowLineLeft::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("https://svgsilh.com/svg/309841.svg");
+  background-size: 30%;
+  background-repeat: no-repeat;
+  background-position: 20% center;
+  opacity: 0.15;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 80%, black 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 90%, black 100%);
+}
+
+.titleWrap {
+  position: fixed;
+  left: 50%;
+  top: 55.3%;
+  transform: translate(-50%, -85%);
+  z-index: 750;
+  pointer-events: none;
+  text-align: center;
+}
+
+.titleWrap {
+  display: none;
+  opacity: 0;
+}
+
+.titleWrap.glitchReveal {
+  display: block;
+  animation: titleGlitchIn 0.5s steps(1) forwards;
+}
+
+@keyframes titleGlitchIn {
+  0%   { opacity: 1; filter: brightness(3) hue-rotate(90deg); }
+  10%  { opacity: 0; }
+  20%  { opacity: 1; filter: brightness(2) hue-rotate(-45deg); }
+  30%  { opacity: 0; }
+  40%  { opacity: 0.7; filter: brightness(1.5) hue-rotate(30deg); }
+  50%  { opacity: 0; }
+  60%  { opacity: 0.9; filter: brightness(1.2) hue-rotate(-15deg); }
+  75%  { opacity: 1; filter: brightness(1.1) hue-rotate(5deg); }
+  100% { opacity: 1; filter: none; }
+}
+
+.titleWrap h2 {
+  font-family: 'Oswald', sans-serif; !important;
+  font-weight: 400;
+  font-size: 1vw;
+  letter-spacing: 1.2em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  margin: 0;
+  padding-left: 1.2em;
+  text-shadow: 0 -1px 0 #f5d623;
+}
+
+.titleWrap h1 {
+  font-family: 'Michroma', sans-serif; !important;
+  font-weight: 600;
+  font-size: 5vw;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  margin: 0;
+  line-height: 0.9;
+  text-shadow: 0 -1px 0 #f5d623;
+  -webkit-text-stroke: 1px #1a1a1a;
+  paint-order: stroke fill;
+}
+
+.kanji-badge {
+  display: inline-block;
+  height: 0.83em;
+  width: auto;
+  vertical-align: bottom;
+  margin-left: 0.05em;
+  margin-bottom: -0.03em;
+  filter: drop-shadow(0 -1.5px 0 #f5d623);
+}
+
+.titleSlices {
+  position: relative;
+  display: inline-block;
+}
+
+.titleSlice {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.titleSlice:first-child {
+  position: relative;
+}
+
+.titleSlice h1 {
+  font-family: 'Michroma', sans-serif;
+  font-weight: 600;
+  font-size: 5vw;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  margin: 0;
+  line-height: 0.9;
+  -webkit-text-stroke: 1px #1a1a1a;
+  paint-order: stroke fill;
+  text-shadow: 0 -2px 0 #f5d623;
+  visibility: hidden;
+}
+
+.titleSlice:first-child h1 {
+  visibility: visible;
+}
+
+.ts1 {
+  clip-path: inset(0% 0 75% 0);
+  animation: slice1 10s steps(1) infinite;
+}
+
+.ts2 {
+  clip-path: inset(25% 0 50% 0);
+  animation: slice2 12s steps(1) infinite;
+}
+
+.ts3 {
+  clip-path: inset(50% 0 25% 0);
+  animation: slice3 16s steps(1) infinite;
+}
+
+.ts4 {
+  clip-path: inset(75% 0 0% 0);
+  animation: slice4 25s steps(1) infinite;
+}
+
+.titleSlice h1 {
+  visibility: visible;
+}
+
+@keyframes slice1 {
+  0%, 7.9%     { transform: none; filter: none; }
+  8%, 8.3%     { transform: translateX(-5px); filter: hue-rotate(30deg); }
+  8.4%, 8.6%   { transform: translateX(2px); filter: hue-rotate(-15deg); }
+  8.7%, 52.9%  { transform: none; filter: none; }
+  53%, 55%     { transform: translateX(4px); filter: hue-rotate(-25deg); }
+  55.1%, 100%  { transform: none; filter: none; }
+}
+
+@keyframes slice2 {
+  0%, 22.9%    { transform: none; filter: none; }
+  23%, 23.6%   { transform: translateX(6px); filter: hue-rotate(-30deg); }
+  23.7%, 23.9% { transform: translateX(-3px); filter: hue-rotate(20deg); }
+  24%, 71.9%   { transform: none; filter: none; }
+  72%, 74.5%   { transform: translateX(-4px); filter: hue-rotate(35deg); }
+  74.6%, 100%  { transform: none; filter: none; }
+}
+
+@keyframes slice3 {
+  0%, 34.9%    { transform: none; filter: none; }
+  35%, 37.2%   { transform: translateX(-3px); filter: hue-rotate(20deg); }
+  37.3%, 78.9% { transform: none; filter: none; }
+  79%, 79.5%   { transform: translateX(5px); filter: hue-rotate(-40deg); }
+  79.6%, 79.8% { transform: translateX(-2px); filter: hue-rotate(15deg); }
+  79.9%, 100%  { transform: none; filter: none; }
+}
+
+@keyframes slice4 {
+  0%, 44.9%    { transform: none; filter: none; }
+  45%, 45.4%   { transform: translateX(4px); filter: hue-rotate(-20deg); }
+  45.5%, 88.9% { transform: none; filter: none; }
+  89%, 91.5%   { transform: translateX(-5px); filter: hue-rotate(30deg); }
+  91.6%, 91.8% { transform: translateX(3px); filter: hue-rotate(-25deg); }
+  91.9%, 100%  { transform: none; filter: none; }
+}
+
+.badge1 {
+  display: none;
+  overflow: visible;
+  position: fixed;
+  left: 0;
+  bottom: 35%;
+  width: 18vw;
+  height: 8vh;
+  z-index: 710;
+  pointer-events: none;
+  display: none;
+}
+
+.b1-base {
+  position: absolute;
+  inset: 0;
+  background: #f5d623;
+  -webkit-mask-image: linear-gradient(to right, black 55%, transparent 100%);
+  mask-image: linear-gradient(to right, black 55%, transparent 100%);
+  animation: b1baseGlitch 6s steps(1) infinite;
+}
+
+.b1-base::before,
+.b1-slice::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/grungetexture2.webp");
+  background-size: 550% auto;
+  background-position: 15% 30%;
+  opacity: 0.15;
+}
+
+.b1-gray::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/grungetexture2.webp");
+  background-size: 130% auto;
+  background-position: 60% 10%;
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+}
+
+@keyframes b1baseGlitch {
+  0%, 14.9%    { transform: translateX(0); }
+  15%, 15.3%   { transform: translateX(3px); }
+  15.4%, 52.9% { transform: translateX(0); }
+  53%, 55%     { transform: translateX(-2px); }
+  55.1%, 100%  { transform: translateX(0); }
+}
+
+.b1g1 { bottom: -20%; height: 12%; animation: b1gray1 9s steps(1) infinite; }
+.b1g2 { bottom: -10%; height: 8%;  animation: b1gray2 12s steps(1) infinite; }
+.b1g3 { bottom: 0%;   height: 6%;  animation: b1gray3 7.5s steps(1) infinite; }
+.b1g4 { bottom: 6%;   height: 10%; animation: b1gray4 14s steps(1) infinite; }
+.b1g5 { bottom: 16%;  height: 5%;  animation: b1gray5 10s steps(1) infinite; }
+.b1g6 { bottom: 21%;  height: 8%;  animation: b1gray6 11s steps(1) infinite; }
+.b1g7 { bottom: 29%;  height: 4%;  animation: b1gray7 8.5s steps(1) infinite; }
+
+@keyframes b1gray1 {
+  0%, 19.9%    { transform: translateX(5px); }
+  20%, 20.5%   { transform: translateX(18px); }
+  20.6%, 100%  { transform: translateX(5px); }
+}
+@keyframes b1gray2 {
+  0%, 44.9%    { transform: translateX(-7px); }
+  45%, 47%     { transform: translateX(10px); }
+  47.1%, 100%  { transform: translateX(-7px); }
+}
+@keyframes b1gray3 {
+  0%, 34.9%    { transform: translateX(20px); }
+  35%, 35.3%   { transform: translateX(5px); }
+  35.4%, 100%  { transform: translateX(20px); }
+}
+@keyframes b1gray4 {
+  0%, 64.9%    { transform: translateX(-3px); }
+  65%, 67%     { transform: translateX(15px); }
+  67.1%, 100%  { transform: translateX(-3px); }
+}
+@keyframes b1gray5 {
+  0%, 29.9%    { transform: translateX(12px); }
+  30%, 30.4%   { transform: translateX(-5px); }
+  30.5%, 100%  { transform: translateX(12px); }
+}
+@keyframes b1gray6 {
+  0%, 54.9%    { transform: translateX(-9px); }
+  55%, 55.5%   { transform: translateX(8px); }
+  55.6%, 100%  { transform: translateX(-9px); }
+}
+@keyframes b1gray7 {
+  0%, 74.9%    { transform: translateX(16px); }
+  75%, 77%     { transform: translateX(-4px); }
+  77.1%, 100%  { transform: translateX(16px); }
+}
+
+.b1-slice {
+  position: absolute;
+  inset: 0;
+  background: #f5d623;
+  -webkit-mask-image: linear-gradient(to right, black 92%, transparent 100%);
+  mask-image: linear-gradient(to right, black 92%, transparent 100%);
+}
+
+.b1s1  { clip-path: inset(0% 0% 94% 0%);  animation: b1g1a 8s steps(1) infinite; }
+.b1s2  { clip-path: inset(6% 0% 88% 0%);  animation: b1g2a 11s steps(1) infinite; }
+.b1s3  { clip-path: inset(12% 0% 82% 0%); animation: b1g3a 7s steps(1) infinite; }
+.b1s4  { clip-path: inset(18% 0% 70% 0%); animation: b1g4a 13s steps(1) infinite; }
+.b1s5  { clip-path: inset(30% 0% 62% 0%); animation: b1g5a 9s steps(1) infinite; }
+.b1s6  { clip-path: inset(38% 0% 55% 0%); animation: b1g6a 15s steps(1) infinite; }
+.b1s7  { clip-path: inset(45% 0% 44% 0%); animation: b1g7a 10s steps(1) infinite; }
+.b1s8  { clip-path: inset(56% 0% 35% 0%); animation: b1g8a 14s steps(1) infinite; }
+.b1s9  { clip-path: inset(65% 0% 24% 0%); animation: b1g9a 12s steps(1) infinite; }
+.b1s10 { clip-path: inset(76% 0% 14% 0%); animation: b1g10a 16s steps(1) infinite; }
+.b1s11 { clip-path: inset(86% 0% 0% 0%); animation: b1g11a 9.5s steps(1) infinite; }
+
+@keyframes b1g1a {
+  0%, 11.9%    { transform: translateX(22px); }
+  12%, 12.4%   { transform: translateX(37px); }
+  12.5%, 45.9% { transform: translateX(22px); }
+  46%, 48%     { transform: translateX(2px); }
+  48.1%, 100%  { transform: translateX(22px); }
+}
+@keyframes b1g2a {
+  0%, 24.9%    { transform: translateX(-8px); }
+  25%, 25.3%   { transform: translateX(17px); }
+  25.4%, 69.9% { transform: translateX(-8px); }
+  70%, 72%     { transform: translateX(-20px); }
+  72.1%, 100%  { transform: translateX(-8px); }
+}
+@keyframes b1g3a {
+  0%, 34.9%    { transform: translateX(35px); }
+  35%, 37%     { transform: translateX(17px); }
+  37.1%, 100%  { transform: translateX(35px); }
+}
+@keyframes b1g4a {
+  0%, 19.9%    { transform: translateX(-4px); }
+  20%, 20.4%   { transform: translateX(18px); }
+  20.5%, 100%  { transform: translateX(-4px); }
+}
+@keyframes b1g5a {
+  0%, 54.9%    { transform: translateX(18px); }
+  55%, 57.5%   { transform: translateX(-5px); }
+  57.6%, 100%  { transform: translateX(18px); }
+}
+@keyframes b1g6a {
+  0%, 39.9%    { transform: translateX(-12px); }
+  40%, 40.3%   { transform: translateX(10px); }
+  40.4%, 100%  { transform: translateX(-12px); }
+}
+@keyframes b1g7a {
+  0%, 64.9%    { transform: translateX(28px); }
+  65%, 65.5%   { transform: translateX(8px); }
+  65.6%, 100%  { transform: translateX(28px); }
+}
+@keyframes b1g8a {
+  0%, 29.9%    { transform: translateX(-6px); }
+  30%, 32%     { transform: translateX(14px); }
+  32.1%, 100%  { transform: translateX(-6px); }
+}
+@keyframes b1g9a {
+  0%, 44.9%    { transform: translateX(40px); }
+  45%, 45.4%   { transform: translateX(20px); }
+  45.5%, 100%  { transform: translateX(40px); }
+}
+@keyframes b1g10a {
+  0%, 74.9%    { transform: translateX(-10px); }
+  75%, 77%     { transform: translateX(12px); }
+  77.1%, 100%  { transform: translateX(-10px); }
+}
+@keyframes b1g11a {
+  0%, 59.9%    { transform: translateX(15px); }
+  60%, 60.3%   { transform: translateX(-8px); }
+  60.4%, 100%  { transform: translateX(15px); }
+}
+
+.b1-gray {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  background: #8a8a8a;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: linear-gradient(to right, black 40%, transparent 90%);
+  mask-image: linear-gradient(to right, black 40%, transparent 90%);
+}
+
+.badge2 {
+  display: none;
+  overflow: visible;
+  position: fixed;
+  right: 0;
+  top: 50%;
+  width: 14vw;
+  height: 5vh;
+  z-index: 710;
+  pointer-events: none;
+}
+
+.b2-base {
+  position: absolute;
+  inset: 0;
+  background: #f5d623;
+  -webkit-mask-image: linear-gradient(to left, black 55%, transparent 100%);
+  mask-image: linear-gradient(to left, black 55%, transparent 100%);
+  animation: b2baseGlitch 7s steps(1) infinite;
+}
+
+.b2-base::before,
+.b2-slice::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/grungetexture2.webp");
+  background-size: 950% auto;
+  background-position: 75% 50%;
+  opacity: 0.1;
+}
+
+.b2-gray::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/grungetexture2.webp");
+  background-size: 100% auto;
+  background-position: 35% 80%;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+}
+
+@keyframes b2baseGlitch {
+  0%, 22.9%    { transform: translateX(0); }
+  23%, 23.4%   { transform: translateX(-4px); }
+  23.5%, 67.9% { transform: translateX(0); }
+  68%, 69.5%   { transform: translateX(2px); }
+  69.6%, 100%  { transform: translateX(0); }
+}
+
+.b2-slice {
+  position: absolute;
+  inset: 0;
+  background: #f5d623;
+  -webkit-mask-image: linear-gradient(to left, black 92%, transparent 100%);
+  mask-image: linear-gradient(to left, black 92%, transparent 100%);
+}
+
+.b2s1 { clip-path: inset(0% 0% 86% 0%);  animation: b2s1a 9s steps(1) infinite; }
+.b2s2 { clip-path: inset(14% 0% 72% 0%); animation: b2s2a 12s steps(1) infinite; }
+.b2s3 { clip-path: inset(28% 0% 60% 0%); animation: b2s3a 8s steps(1) infinite; }
+.b2s4 { clip-path: inset(40% 0% 48% 0%); animation: b2s4a 14s steps(1) infinite; }
+.b2s5 { clip-path: inset(52% 0% 34% 0%); animation: b2s5a 11s steps(1) infinite; }
+.b2s6 { clip-path: inset(66% 0% 18% 0%); animation: b2s6a 16s steps(1) infinite; }
+.b2s7 { clip-path: inset(82% 0% 0% 0%);  animation: b2s7a 10s steps(1) infinite; }
+
+@keyframes b2s1a {
+  0%, 17.9%    { transform: translateX(-18px); }
+  18%, 18.5%   { transform: translateX(-35px); }
+  18.6%, 62.9% { transform: translateX(-18px); }
+  63%, 65%     { transform: translateX(-5px); }
+  65.1%, 100%  { transform: translateX(-18px); }
+}
+@keyframes b2s2a {
+  0%, 31.9%    { transform: translateX(6px); }
+  32%, 32.4%   { transform: translateX(-15px); }
+  32.5%, 100%  { transform: translateX(6px); }
+}
+@keyframes b2s3a {
+  0%, 44.9%    { transform: translateX(-28px); }
+  45%, 47%     { transform: translateX(-10px); }
+  47.1%, 100%  { transform: translateX(-28px); }
+}
+@keyframes b2s4a {
+  0%, 24.9%    { transform: translateX(3px); }
+  25%, 25.3%   { transform: translateX(-22px); }
+  25.4%, 100%  { transform: translateX(3px); }
+}
+@keyframes b2s5a {
+  0%, 59.9%    { transform: translateX(-14px); }
+  60%, 62.5%   { transform: translateX(4px); }
+  62.6%, 100%  { transform: translateX(-14px); }
+}
+@keyframes b2s6a {
+  0%, 39.9%    { transform: translateX(8px); }
+  40%, 40.4%   { transform: translateX(-18px); }
+  40.5%, 100%  { transform: translateX(8px); }
+}
+@keyframes b2s7a {
+  0%, 54.9%    { transform: translateX(-22px); }
+  55%, 55.5%   { transform: translateX(-6px); }
+  55.6%, 100%  { transform: translateX(-22px); }
+}
+
+.b2-gray {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  background: #8a8a8a;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: linear-gradient(to left, black 40%, transparent 90%);
+  mask-image: linear-gradient(to left, black 40%, transparent 90%);
+}
+
+.b2g1 { top: -22%; height: 10%; animation: b2gr1 10s steps(1) infinite; }
+.b2g2 { top: -12%; height: 7%;  animation: b2gr2 13s steps(1) infinite; }
+.b2g3 { top: -5%;  height: 8%;  animation: b2gr3 8.5s steps(1) infinite; }
+.b2g4 { top: 3%;   height: 12%; animation: b2gr4 15s steps(1) infinite; }
+.b2g5 { top: 15%;  height: 6%;  animation: b2gr5 11s steps(1) infinite; }
+
+@keyframes b2gr1 {
+  0%, 27.9%    { transform: translateX(-8px); }
+  28%, 28.5%   { transform: translateX(-22px); }
+  28.6%, 100%  { transform: translateX(-8px); }
+}
+@keyframes b2gr2 {
+  0%, 49.9%    { transform: translateX(5px); }
+  50%, 52%     { transform: translateX(-12px); }
+  52.1%, 100%  { transform: translateX(5px); }
+}
+@keyframes b2gr3 {
+  0%, 37.9%    { transform: translateX(-15px); }
+  38%, 38.3%   { transform: translateX(3px); }
+  38.4%, 100%  { transform: translateX(-15px); }
+}
+@keyframes b2gr4 {
+  0%, 69.9%    { transform: translateX(10px); }
+  70%, 72%     { transform: translateX(-8px); }
+  72.1%, 100%  { transform: translateX(10px); }
+}
+@keyframes b2gr5 {
+  0%, 59.9%    { transform: translateX(-12px); }
+  60%, 60.4%   { transform: translateX(6px); }
+  60.5%, 100%  { transform: translateX(-12px); }
+}
+
+@keyframes badgeGlitchIn {
+  0%   { opacity: 1; filter: brightness(3) hue-rotate(90deg); }
+  10%  { opacity: 0; }
+  20%  { opacity: 1; filter: brightness(2) hue-rotate(-45deg); }
+  30%  { opacity: 0; }
+  45%  { opacity: 0.7; filter: brightness(1.5) hue-rotate(30deg); }
+  55%  { opacity: 0; }
+  65%  { opacity: 0.9; filter: brightness(1.2) hue-rotate(-15deg); }
+  80%  { opacity: 1; filter: brightness(1.1); }
+  100% { opacity: 1; filter: none; }
+}
+
+.badgeGlitchIn {
+  animation: badgeGlitchIn 0.5s steps(1) forwards;
+}
+
+.cornerMarks {
+  display: none;
+  position: fixed;
+  left: 50.18%;
+  top: 57%;
+  transform: translate(-50%, -85%);
+  z-index: 740;
+  pointer-events: none;
+  width: 45.8vw;
+  height: 7vw;
+}
+
+.titleBoxes {
+  display: none;
+  position: fixed;
+  left: 28%;
+  top: 47%;
+  transform: translate(-50%, -85%);
+  z-index: 730;
+  pointer-events: none;
+}
+
+.titleBox {
+  
+  position: absolute;
+  width: 45vw;
+  height: 5vw;
+}
+
+.tb-dark {
+  border: 2px solid #3a3a3a;
+  opacity: 0.9;
+  top: 0.4vw;
+  left: -1.2vw;
+  background: none;
+}
+
+.tb-light {
+  border: 2px solid #888;
+  opacity: 0.8;
+  top: 0.7vw;
+  left: 0.8vw;
+  background: none;
+}
+
+.cm {
+  position: absolute;
+  font-family: 'Michroma', sans-serif;
+  font-size: 1.4vw;
+  color: #555;
+  line-height: 1;
+  user-select: none;
+}
+
+.cm-tl { top: 0; left: 0; }
+.cm-tr { top: 0; right: 0; }
+.cm-bl { bottom: 0; left: 0; }
+.cm-br { bottom: 0; right: 0; }
+
+.cornerMarks.reveal {
+  display: block;
+  animation: cmExpand 0.8s ease-out forwards;
+}
+
+@keyframes cmExpand {
+  0%   { width: 45.8vw; height: 7vw; opacity: 0; top: 57%; }
+  100% { width: 52vw; height: 9.5vw; opacity: 1; top: 59.9%; }
+}
+
+.titleBoxes.reveal {
+  display: block;
+  opacity: 0;
+  animation: tbFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes tbFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/*actually content from here*/
+
+.contentA,
+.contentB {
+  opacity: 0;
+  display: none;
+  position: fixed;
+  z-index: 800;
+  pointer-events: auto;
+  border: 2px solid rgba(245, 214, 35, 0.2);
+  padding: 10px;
+  background: rgba(12, 16, 28, 0.8);
+}
+
+.contentA,
+.contentB {
+  position: fixed;
+  z-index: 800;
+  pointer-events: auto;
+  border: 0.2vmin solid rgba(245, 214, 35, 0.2);
+  padding: 0.8vmin;
+  background: rgba(12, 16, 28, 0.8);
+}
+
+.contentA::before,
+.contentB::before {
+  content: "";
+  position: absolute;
+  width: calc(100% + 0.4vmin);
+  border-width: 1vmin;
+  border-style: solid;
+  border-color: transparent #f5d623;
+  left: -0.1vmin;
+  top: -1.01vmin;
+  width: calc(100% + -1.6vmin);
+}
+
+.contentA::after,
+.contentB::after {
+  content: "";
+  position: absolute;
+  width: calc(100% + 0.4vmin);
+  border-width: 1vmin;
+  border-style: solid;
+  border-color: transparent #f5d623;
+  left: -0.1vmin;
+  bottom: -1.05vmin;
+  width: calc(100% + -1.6vmin);
+}
+
+.contentA {
+  top: 10%;
+  left: 5%;
+  width: 32vw;
+  height: 24vh;
+}
+
+.contentB {
+  bottom: 10%;
+  right: 5%;
+  width: 32vw;
+  height: 24vh;
+}
+
+.boxTitle {
+  color: #e0e0e0;
+  font-family: 'Electrolize', serif;
+  font-size: 1vw;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-bottom: 2px solid rgba(245, 214, 35, 0.2);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.boxContent {
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Electrolize', serif;
+  font-size: 0.85vw;
+  font-weight: 300;
+  line-height: 1.6;
+  padding-top: 5px;
+  overflow-y: auto;
+  height: calc(100% - 2.5em);
+}
+
+.boxLayout {
+  display: flex;
+  height: calc(100% - 2.5em);
+  gap: 0.6vmin;
+}
+
+.boxImage {
+  flex-shrink: 0;
+  width: 35%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.boxImg-base {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+
+.boxImg-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: screen;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+.boxImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 80% 20%;
+}
+
+.boxDivider {
+  flex-shrink: 0;
+  width: 0.2vmin;
+  background: rgba(245, 214, 35, 0.2);
+}
+
+.contentA1 {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.4vmin;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.75vw;
+  line-height: 1.7;
+  text-align: justify;
+}
+
+.contentA2 {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.4vmin;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.75vw;
+  line-height: 1.7;
+  display: none;
+}
+
+
+
+.boxTabs {
+  position: absolute;
+  right: -3.2vmin;
+  top: 20%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3vmin;
+}
+
+.boxTab {
+  width: 3vmin;
+  padding: 0.8vmin 0;
+  background: rgba(12, 16, 28, 0.9);
+  border: 0.2vmin solid rgba(245, 214, 35, 0.2);
+  border-left: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.65vw;
+  text-align: center;
+  cursor: pointer;
+  clip-path: polygon(0 0, 70% 0, 100% 15%, 100% 85%, 70% 100%, 0 100%);
+  transition: background 0.2s, color 0.2s;
+}
+
+.boxTab:hover {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(20, 25, 45, 0.95);
+}
+
+.boxTab.tabActive {
+  border-color: rgba(245, 214, 35, 0.4);
+  color: #f5d623;
+  background: rgba(20, 25, 45, 0.95);
+}
+
+
+.boxContentB {
+  height: calc(100% - 2.5em);
+  overflow: visible;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.75vw;
+  line-height: 1.7;
+}
+
+.boxTabsB {
+  position: absolute;
+  bottom: -2.4vmin;
+  right: 5%;
+  display: flex;
+  flex-direction: row;
+  gap: 0.3vmin;
+}
+
+.boxTabB {
+  padding: 0.4vmin 1.5vmin;
+  background: rgba(12, 16, 28, 0.9);
+  border: 0.2vmin solid rgba(245, 214, 35, 0.2);
+  border-top: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.6vw;
+  letter-spacing: 0.1em;
+  text-align: center;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 85% 100%, 15% 100%);
+  transition: background 0.2s, color 0.2s;
+}
+
+.boxTabB:hover {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(20, 25, 45, 0.95);
+}
+
+.boxTabB.tabBActive {
+  border-color: rgba(245, 214, 35, 0.4);
+  color: #f5d623;
+  background: rgba(20, 25, 45, 0.95);
+}
+
+.gallery {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.8vmin;
+  height: 100%;
+  padding: 0.5vmin;
+}
+
+.galleryImg {
+  height: 80%;
+  width: auto;
+  aspect-ratio: 3 / 6;
+  object-fit: cover;
+  border: 0.15vmin solid rgba(245, 214, 35, 0.15);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.galleryImg:hover {
+  border-color: rgba(245, 214, 35, 0.5);
+}
+
+
+
+.contentB1 {
+  height: 100%;
+  overflow: hidden;
+}
+
+.galleryImg:nth-child(1) { object-position: 50% 20%; }
+.galleryImg:nth-child(2) { object-position: 30% 30%; }
+.galleryImg:nth-child(3) { object-position: 100% 25%; }
+.galleryImg:nth-child(4) { object-position: 100% 15%; }
+
+
+.contentB3 {
+  height: 100%;
+  overflow: visible;
+}
+
+
+.boxContentB{
+  height: calc(100% - 2.5em);
+  overflow: hidden;  
+}
+
+.contentB1,
+.contentB3{
+  overflow: hidden; 
+}
+
+.contentB2{
+  display: none;
+  height: 100%;   
+  overflow-y: auto; 
+  padding-right: 0.4vmin;
+}
+
+
+.charSlots {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 0;
+}
+
+.charSlot {
+  overflow: visible;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.charDivider {
+  flex-shrink: 0;
+  width: 0.2vmin;
+  height: 80%;
+  background: rgba(245, 214, 35, 0.2);
+}
+
+.charLink {
+  overflow: visible;
+  position: relative;
+  display: block;
+  width: 80%;
+  height: 3.5vmin;
+  overflow: hidden;
+}
+
+.charImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  border: 0.15vmin solid rgba(245, 214, 35, 0.15);
+  transition: border-color 0.2s;
+}
+
+.charLink:hover .charImg {
+  border-color: rgba(245, 214, 35, 0.5);
+}
+
+.charTooltip {
+  z-index: 10;
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.55vw;
+  padding: 0.3vmin 0.6vmin;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.charLink:hover .charTooltip {
+  opacity: 1;
+}
+
+.charEmpty {
+  color: rgba(255, 255, 255, 0.15);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.65vw;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+.charTip {
+  position: fixed;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.9);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.55vw;
+  padding: 0.3vmin 0.6vmin;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.charTooltip {
+  display: none;
+}
+
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  animation: lbFadeIn 0.3s ease forwards;
+}
+
+.lightbox img {
+  max-width: 80vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border: 0.2vmin solid rgba(245, 214, 35, 0.3);
+}
+
+@keyframes lbFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* =========================
+   the other characters
+   ========================= */
+
+#charFolder {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  z-index: 850;
+  display: none;
+  opacity: 0;
+}
+
+#charFolder.reveal {
+  display: block;
+  animation: folderGlitchIn 0.5s steps(1) forwards;
+}
+
+@keyframes folderGlitchIn {
+  0%   { opacity: 1; filter: brightness(3) hue-rotate(90deg); }
+  10%  { opacity: 0; }
+  20%  { opacity: 1; filter: brightness(2) hue-rotate(-45deg); }
+  30%  { opacity: 0; }
+  45%  { opacity: 0.7; filter: brightness(1.5) hue-rotate(30deg); }
+  55%  { opacity: 0; }
+  65%  { opacity: 0.9; filter: brightness(1.2) hue-rotate(-15deg); }
+  80%  { opacity: 1; filter: brightness(1.1); }
+  100% { opacity: 1; filter: none; }
+}
+
+.charFolder-tab {
+  position: relative;
+  width: 24vw;
+  display: block;
+  background: #f5d623;
+  color: #1a1a1a;
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.7vw;
+  letter-spacing: 0.1em;
+  padding: 0.4vh 1.2vw 0.3vh 1.2vw;
+  border-radius: 0.4vw 0.4vw 0 0;
+  cursor: pointer;
+  box-shadow: 0 -0.4vh 1.2vh rgba(0, 0, 0, 0.15);
+  transition: background 0.2s;
+  box-sizing: border-box;
+  z-index: 999999;
+}
+
+.charFolder-tab:hover {
+  background: #f7e04a;
+}
+
+.charFolder-panel {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 22vw;
+  height: 0;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.8);
+  border: 0.15vw solid rgba(245, 214, 35, 0.2);
+  border-bottom: none;
+  border-radius: 0 0.4vw 0 0;
+  transition: height 0.35s ease;
+  z-index: 851;
+}
+
+.charFolder-panel.open {
+  height: 100vh;
+}
+
+.charFolder-static {
+  position: absolute;
+  inset: 0;
+  background-image: url("https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/static.gif");
+  background-repeat: repeat;
+  opacity: 0.02;
+  pointer-events: none;
+}
+
+.charFolder-close {
+  position: absolute;
+  top: 0.8vh;
+  right: 0.5vw;
+  width: 1.8vw;
+  height: 1.8vw;
+  background: #1a1a1a;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.7vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 0.2vw;
+  border: 0.1vw solid rgba(255, 255, 255, 0.15);
+  transition: background 0.15s, color 0.15s;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.charFolder-close:hover {
+  background: #333;
+  color: #fff;
+}
+
+.charFolder-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  padding: 1.5vh 0.8vw 0.8vh 0.8vw;
+}
+
+.charFolder-content .charSlots {
+  height: 100%;
+}
+
+.charFolder-content .charLink {
+  height: 5vh;
+  width: 90%;
+}
+
+.charFolder-content .charImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  border: 0.15vmin solid rgba(245, 214, 35, 0.15);
+  transition: border-color 0.2s;
+}
+
+
+#LOADINGSCREEN{
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 999999;
+  display: grid;
+  place-items: center;
+}
+
+#LOADINGSCREEN .loading-inner{
+  position: relative;
+  width: min(980px, 92vw);
+  text-align: center;
+  transform: translateY(-6vh);
+}
+
+
+#LOADINGSCREEN .volumeGate{
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 100%;
+  width: min(520px, 82vw);
+
+  display: none;           
+  opacity: 0;
+  pointer-events: auto;
+
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#LOADINGSCREEN .volumeGate.show{
+  display: block;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+#LOADINGSCREEN .vgTitle{
+  font-family: 'Electrolize', Arial, sans-serif;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+#LOADINGSCREEN .vgRow{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+#LOADINGSCREEN .vgLabel{
+  font-family: 'Electrolize', Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.55);
+}
+
+#LOADINGSCREEN #volumeSlider{
+  width: min(260px, 52vw); 
+  accent-color: #fff;
+}
+
+#LOADINGSCREEN .vgPct{
+  min-width: 48px;
+  text-align: left;
+  font-family: 'Electrolize', Arial, sans-serif;
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+}
+
+#LOADINGSCREEN .vgSelect{
+  margin-top: 10px;
+  background: rgba(12,16,28,0.85);
+  border: 0.2vmin solid rgba(245,214,35,0.25);
+  color: rgba(245,214,35,0.95);
+  padding: 0.7vmin 2.6vmin;
+  font-family: 'Electrolize', Arial, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%, 4% 50%);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+
+#LOADINGSCREEN .vgSelect:hover{
+  background: rgba(20,25,45,0.95);
+  border-color: rgba(245,214,35,0.45);
+  transform: translateY(-1px);
+}
+
+#LOADINGSCREEN .vgSelect:disabled{
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+#LOADINGSCREEN .volumeGate{ display:none; opacity:0; }
+#LOADINGSCREEN .volumeGate.show{ display:block; opacity:1; }
+
+
+#LOADINGSCREEN .loading-logo {
+  max-width: 100%;
+  height: auto;
+}
+
+#LOADINGSCREEN .loading-warning-title {
+  font-family: 'Electrolize', Arial, sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(245, 214, 35, 0.85);
+  margin-top: 3vh;
+  margin-bottom: 1vh;
+}
+
+#LOADINGSCREEN .loading-warning-text {
+  font-family: 'Electrolize', Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.45);
+  max-width: min(520px, 82vw);
+  margin: 0 auto;
+}
+
+
+
+#profileLoadbar {
+  position: fixed !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 5vh !important;
+
+  z-index: 900 !important;
+  background: #0a0a0a !important;
+  opacity: 0;
+  pointer-events: none;
+  box-sizing: border-box !important;
+}
+
+#profileLoadbar .profileLoadbar-track {
+  position: absolute !important;
+  left: 1.25vw !important;
+  right: 1.25vw !important;
+  bottom: 1vh !important;
+  height: 0.3vh !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+#profileLoadbar .profileLoadbar-fill {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  height: 100% !important;
+  width: 0%;
+  background: rgba(255, 255, 255, 0.85) !important;
+  transition: width 0.15s ease-out;
+}
+
+#profileLoadbar .profileLoadbar-status {
+  position: absolute !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: 1.2vh !important;
+  font-family: 'Electrolize', Arial, sans-serif !important;
+  font-size: 1.3vh !important;
+  letter-spacing: 0.06em !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  white-space: nowrap !important;
+}
+
+
+/* =========================
+   right clicky thing
+   ========================= */
+
+#ecm {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  z-index: 99999;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+#ecm.ecm-show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ecm-sticker {
+  display: block;
+  width: 12vw;
+  max-width: 200px;
+  min-width: 80px;
+  height: auto;
+  margin-left: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ecm-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.75vw;
+  padding: 0.5vw 0.8vw;
+  border-radius: 8px;
+  border: none;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: none;
+  margin-bottom: 0.5vh;
+}
+
+.ecm-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  border: none;
+}
+
+.ecm-options {
+  position: absolute;
+  bottom: 60%;
+  right: 105%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4vh;
+}
+
+.ecm-btn {
+  display: block;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: 'Electrolize', sans-serif;
+  font-size: 0.7vw;
+  padding: 0.4vw 1vw;
+  border: 1.5px solid rgba(245, 214, 35, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ecm-btn:hover {
+  background: #fffde6;
+  border-color: rgba(245, 214, 35, 0.7);
+}
+
+
+
+
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Electrolize&family=Michroma&family=Oswald:wght@200..700&display=swap" rel="stylesheet">
+
+<div class="rp-root">
+ <div class="bg-scan"></div>
+</div>
+
+<div class="floor-wrap">
+ <div class="grid-plane"></div>
+</div>
+
+
+<!-- FIRST ENDMIN -->
+<div class="Endmin" id="Endmin">
+ <canvas class="EndminCanvas" id="EndminCanvas"></canvas>
+ <div class="EndminBody EndminRig"></div>
+ <div class="EndminHead EndminRig"></div>
+ <div class="EndminTassle EndminRig"></div>
+</div>
+
+
+<div class="rorschach">
+ <video class="rorVid" loop muted playsinline>
+ <source src="https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/Rorsach.webm" type="video/webm">
+ </video>
+ <video class="rorVid" loop muted playsinline>
+ <source src="https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/Rorsach.webm" type="video/webm">
+ </video>
+ <video class="rorVid" loop muted playsinline>
+ <source src="https://github.com/amadeuslikesrice/TheEndminRPRepo/raw/refs/heads/main/Rorsach.webm" type="video/webm">
+ </video>
+</div>
+
+
+<!--imwalkinghere -->
+<div class="endminWalkWrap">
+ <div class="endminWalk">
+ <canvas class="endminWalkCanvas" id="endminWalkCanvas"></canvas>
+ </div>
+</div>
+
+
+<div class="EndfieldLogo"></div>
+
+<div class="FlareGlow"></div>
+<div class="FlareComposite"></div>
+
+<!-- subtle waves -->
+<div class="WaveWrap">
+ <div class="wv wv1"></div>
+ <div class="wv wv2"></div>
+ <div class="wv wv3"></div>
+ <div class="wv wv4"></div>
+</div>
+
+
+<div class="yellowLineLeft"></div>
+<div class="yellowLineRight"></div>
+
+<div class="titleBoxes">
+ <div class="titleBox tb-dark"></div>
+ <div class="titleBox tb-light"></div>
+</div>
+
+<div class="titleWrap">
+ <h2>Arknights</h2>
+ <div class="titleSlices">
+ <div class="titleSlice ts1"><h1>Endfield<img class="kanji-badge" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/creator.png" alt=""></h1></div>
+ <div class="titleSlice ts2"><h1>Endfield<img class="kanji-badge" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/creator.png" alt=""></h1></div>
+ <div class="titleSlice ts3"><h1>Endfield<img class="kanji-badge" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/creator.png" alt=""></h1></div>
+ <div class="titleSlice ts4"><h1>Endfield<img class="kanji-badge" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/creator.png" alt=""></h1></div>
+ </div>
+</div>
+
+
+<div class="badge1">
+ <div class="b1-base"></div>
+ <div class="b1-slice b1s1"></div>
+ <div class="b1-slice b1s2"></div>
+ <div class="b1-slice b1s3"></div>
+ <div class="b1-slice b1s4"></div>
+ <div class="b1-slice b1s5"></div>
+ <div class="b1-slice b1s6"></div>
+ <div class="b1-slice b1s7"></div>
+ <div class="b1-slice b1s8"></div>
+ <div class="b1-slice b1s9"></div>
+ <div class="b1-slice b1s10"></div>
+ <div class="b1-slice b1s11"></div>
+<div class="b1-gray b1g1"></div>
+<div class="b1-gray b1g2"></div>
+<div class="b1-gray b1g3"></div>
+<div class="b1-gray b1g4"></div>
+<div class="b1-gray b1g5"></div>
+<div class="b1-gray b1g6"></div>
+<div class="b1-gray b1g7"></div>
+</div>
+
+<div class="badge2">
+ <div class="b2-base"></div>
+ <div class="b2-slice b2s1"></div>
+ <div class="b2-slice b2s2"></div>
+ <div class="b2-slice b2s3"></div>
+ <div class="b2-slice b2s4"></div>
+ <div class="b2-slice b2s5"></div>
+ <div class="b2-slice b2s6"></div>
+ <div class="b2-slice b2s7"></div>
+ <div class="b2-gray b2g1"></div>
+ <div class="b2-gray b2g2"></div>
+ <div class="b2-gray b2g3"></div>
+ <div class="b2-gray b2g4"></div>
+ <div class="b2-gray b2g5"></div>
+</div>
+
+
+<div class="cornerMarks">
+ <div class="cm cm-tl">+</div>
+ <div class="cm cm-tr">+</div>
+ <div class="cm cm-bl">+</div>
+ <div class="cm cm-br">+</div>
+</div>
+
+
+<!-- CONTENT A — DOSSIER -->
+<div class="contentA">
+ <div class="boxTitle">DOSSIER</div>
+ <div class="boxLayout">
+ <div class="boxImage">
+ <img class="boxImg-base" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin1.webp" alt="">
+ <img class="boxImg-overlay" src="https://i.imgur.com/Bck007r.gif" alt="">
+ </div>
+ <div class="boxDivider"></div>
+
+ <div class="contentA1">
+Name: ■ ■ <br>
+Height: 6'1" <br>
+Weight: ~185 lb <br>
+Age: ■ ■ <br>
+Gender: Male <br>
+Race: ■ ■ <br>
+<hr>
+The biographical data and logs for the Endminstrator remain suppressed or otherwise lost. It is one of the most controlled confidential records under Endfield authority.
+<br><br>
+Consensus across all found material bears some consistency. Before memory degradation, the subjects played a decisive role in multiple existential-level crises. Settlements are preserved, infrastructure gets stabilized, anomalous phenomena are contained or neutralized, interventions may vary, but outcomes rarely do. The subject presently retains those events in fragments or has forgotten about them completely.
+<br><br>
+Medical review confirms there is no Originium pathology detected despite prolonged exposure through his Arts. The subject continues to demonstrate an anomalous compatibility with Originium and protocol systems. As for the mechanics, they remain undocumented, though several videos and hypothetical papers are proposed. Subject's performance for speed and physical coordination exceeds baseline Terran norms. It seems only his memory is severely affected, which implies a link more to his hibernation than Originium. The Endminstrator's hibernation is mandatory. Duration and physiological rationale are classified at the highest level available in this archive. It is intrinsic to the subject rather than imposed.
+<br><br>
+In terms of behavior, the Endminstrator remains consistent. He shows minimal hesitation in unfamiliar environments, rapid trust assignment to designated allies, and immediate assumption of command authority. The subject does not question his own authority, but he also does not appear consciously aware of it. He also shows no indication of understanding this in his leadership role beyond the immediate mission context.
+<br><br>
+Previous ties to pre-Talos Terran command structures imply symbolic parallels. Any doctrines that indicate shared institutional lineage or direct continuity, and maybe even just pure coincidence, are no longer in circulation.
+<br><br>
+End of file.
+ </div>
+
+ <div class="contentA2">
+ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vel sapien at tortor tincidunt facilisis. Nulla facilisi. Sed euismod, nisl vel tincidunt luctus, nunc nisl aliquam nisl. Praesent vel magna at risus commodo faucibus vel at nunc. Integer hendrerit dolor non ante sollicitudin, in dignissim velit fermentum.
+ <br><br>
+ Curabitur auctor sapien vel ex volutpat, a dictum justo malesuada. Suspendisse potenti. Duis vel semper nulla, sit amet pharetra libero. Fusce in efficitur leo, vel ultrices metus. Maecenas at facilisis urna, vel consequat nisi.
+ <br><br>
+ Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Donec vel velit non nulla fringilla consequat at vel risus.
+ </div>
+
+<div class="boxTabs">
+ <div class="boxTab tabActive">01</div>
+ <div class="boxTab">02</div>
+</div>
+
+ </div>
+</div>
+
+
+<!-- CONTENT B -->
+<div class="contentB">
+ <div class="boxTitle">MISCELLANEOUS</div>
+ <div class="boxContentB">
+
+<div class="contentB1">
+ <div class="gallery">
+ <img class="galleryImg boxImg-base" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin2.jpg" alt="">
+ <img class="galleryImg boxImg-base" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin3.jpg" alt="">
+ <img class="galleryImg boxImg-base" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin%204.jpg" alt="">
+ <img class="galleryImg boxImg-base" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/Endmin%205.jpg" alt="">
+ </div>
+</div>
+
+ <div class="contentB2">
+This is the OOC part. I'm probably lowkey going to make it my OOC hub too since I can't be fucked to make another profile.
+<br>
+- Call me what you want. Some call me Amadeus, some call me The Mind Flayer. But Endmin is just fine.
+<br>
+- Post lengths are relative to context of the scene, although multi-para and Novella is my preference.
+<br>
+- T1 is stupid, T2 is even worse. Seriously? Post-length and purple prose? That's your measure?
+<br>
+- I am usually tabbed. Might want to message me.
+<br>
+- Short-term, long-term. Either or is fine.
+<br>
+- Take what you want from the code. Right click to access the github. No need to credit, but I would love to see your work!
+</div>
+
+ </div>
+ <div class="boxTabsB">
+ <div class="boxTabB tabBActive">GALLERY</div>
+ <div class="boxTabB">META</div>
+ </div>
+</div>
+
+
+<div id="profileLoadbar">
+ <div class="profileLoadbar-track">
+ <div class="profileLoadbar-fill"></div>
+ </div>
+ <div class="profileLoadbar-status"></div>
+</div>
+
+
+<div id="LOADINGSCREEN" aria-hidden="false">
+ <div class="loading-inner">
+ <img
+ class="loading-logo"
+ src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/hypergryph%20logo.jpg"
+ alt="Studio logos"
+ draggable="false"
+ />
+
+ <div class="volumeGate" aria-hidden="true">
+ <div class="vgTitle"></div>
+
+ <div class="vgRow">
+ <span class="vgLabel">VOLUME</span>
+ <input id="volumeSlider" type="range" min="0" max="100" value="50" />
+ <div class="vgPct"><span id="volumePct">50</span>%</div>
+ </div>
+
+ <button id="btnSelect" type="button" class="vgSelect" disabled>SELECT</button>
+ </div>
+
+ <div class="loading-warning-title">WARNING: READ BEFORE ENTERING</div>
+
+ <div class="loading-warning-text">
+ Mild epilepsy warning. This profile also loads a lot of assets, not images so your data is safe. But it does use numerous of effects that might try your computer's temps. This profile also contains music and sounds, and I am well aware not a lot of people are cool with that. So with the feature below, please set your volume preference or just mute the damn thing to be honest. Thank you for checking it out.
+ </div>
+ </div>
+</div>
+
+<div id="audioCover" style="position:fixed;inset:0;background:#000;z-index:9999999;"></div>
+
+
+
+<!-- other characters or some shit -->
+<div id="charFolder">
+  <div class="charFolder-tab">Other Characters</div>
+  <div class="charFolder-panel">
+    <div class="charFolder-static"></div>
+    <div class="charFolder-close">✕</div>
+    <div class="charFolder-content">
+      <div class="charSlots">
+        <div class="charSlot">
+          <a target="_blank" href="https://roleplay.chat/profile.php?user=The+Dragon+Slayer" class="charLink">
+            <img class="charImg" src="https://raw.githubusercontent.com/amadeuslikesrice/TheEndminRPRepo/refs/heads/main/danheng.jpg" alt="">
+            <span class="charTooltip">OC - JRPG Fantasy</span>
+          </a>
+        </div>
+        <div class="charDivider"></div>
+        <div class="charSlot">
+          <div class="charEmpty">EMPTY</div>
+        </div>
+        <div class="charDivider"></div>
+        <div class="charSlot">
+          <div class="charEmpty">EMPTY</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
